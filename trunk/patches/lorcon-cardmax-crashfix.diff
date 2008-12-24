@@ -1,0 +1,54 @@
+Index: tx80211.c
+===================================================================
+--- tx80211.c	(revision 168)
++++ tx80211.c	(working copy)
+@@ -48,20 +48,20 @@
+ 		return NULL;
+ 	}
+ 
+-	ret->cardnames = (char **)malloc(sizeof(char *) * INJ_MAX);
++	ret->cardnames = (char **)malloc(sizeof(char *) * CARDS_MAX);
+ 	if (ret->cardnames == NULL) {
+ 		free(ret);
+ 		return NULL;
+ 	}
+ 
+-	ret->descriptions = (char **)malloc(sizeof(char *) * INJ_MAX);
++	ret->descriptions = (char **)malloc(sizeof(char *) * CARDS_MAX);
+ 	if (ret->descriptions == NULL) {
+ 		free(ret->cardnames);
+ 		free(ret);
+ 		return NULL;
+ 	}
+ 
+-	ret->capabilities = (int *)malloc(sizeof(int) * INJ_MAX);
++	ret->capabilities = (int *)malloc(sizeof(int) * CARDS_MAX);
+ 	if (ret->capabilities == NULL) {
+ 		free(ret->cardnames);
+ 		free(ret->descriptions);
+@@ -187,6 +187,12 @@
+ 	ret->num_cards++;
+ #endif /* SYS_CYGWIN */
+ 
++	if(ret->num_cards > CARDS_MAX) {
++		fprintf(stderr, "Somebody forgot to increment CARDS_MAX from %d to %d\n", 
++				CARDS_MAX, ret->num_cards);
++		exit(1); /* Fuck this noise. */
++	}
++
+ 	return ret;
+ }
+ 
+Index: tx80211.h
+===================================================================
+--- tx80211.h	(revision 168)
++++ tx80211.h	(working copy)
+@@ -250,6 +250,8 @@
+ */
+ #define INJ_MAX         16
+ 
++#define CARDS_MAX       27
++
+ /* Generic endian flopping macros */
+ #ifdef WORDS_BIGENDIAN
+ 

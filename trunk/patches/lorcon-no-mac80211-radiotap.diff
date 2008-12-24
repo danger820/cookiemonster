@@ -1,0 +1,79 @@
+Index: tx.c
+===================================================================
+--- tx.c	(revision 168)
++++ tx.c	(working copy)
+@@ -46,7 +46,7 @@
+ 		fprintf(stderr, "Error accessing supported cardlist.\n");
+ 	} else {
+ 		printf("\nSupported drivers are: ");
+-		for (i = 1; i < cardlist->num_cards; i++) {
++		for (i = 0; i < cardlist->num_cards; i++) {
+ 			printf("%s ", cardlist->cardnames[i]);
+ 		}
+ 		printf("\n");
+Index: wtinject.c
+===================================================================
+--- wtinject.c	(revision 168)
++++ wtinject.c	(working copy)
+@@ -99,6 +99,12 @@
+ 	sa_ll.sll_family = AF_PACKET;
+ 	sa_ll.sll_protocol = htons(ETH_P_80211_RAW);
+ 	sa_ll.sll_ifindex = if_req.ifr_ifindex;
++	// XXX: Doesn't listen to this. Can't use RTAP headers.. :(
++#ifdef USE_RTAP
++	sa_ll.sll_hatype = ARPHRD_IEEE80211_RADIOTAP;
++#else
++	sa_ll.sll_hatype = ARPHRD_IEEE80211;
++#endif
+ 	err = bind(wtinj->raw_fd, (struct sockaddr *)&sa_ll, sizeof sa_ll);
+ 	if (err != 0) {
+ 		snprintf(wtinj->errstr, TX80211_STATUS_MAX, "bind() failed, %s",
+Index: mac80211inject.c
+===================================================================
+--- mac80211inject.c	(revision 168)
++++ mac80211inject.c	(working copy)
+@@ -58,7 +58,11 @@
+ 	int len, channel, sendcount;
+ 
+ 	memset(&mwng_pkt, 0, sizeof(mwng_pkt));
++#ifdef USE_RTAP
+ 	len = (in_pkt->plen + TX80211_RTAP_LEN);
++#else
++	len = (in_pkt->plen);
++#endif
+ 
+ 	pkt = malloc(len);
+ 	if (pkt == NULL) {
+@@ -73,6 +77,7 @@
+ 	channel = tx80211_getchannel(in_tx);
+ 
+ 	/* Setup radiotap header */
++#ifdef USE_RTAP
+ 	rtaphdr = (struct tx80211_radiotap_header *)pkt;
+ 	rtaphdr->it_version = 0;
+ 	rtaphdr->it_pad = 0;
+@@ -118,8 +123,10 @@
+ 					"specified in send function.");
+ 			return TX80211_ENOTSUPP;
+ 	}
+-
+ 	memcpy(pkt + TX80211_RTAP_LEN, in_pkt->packet, in_pkt->plen);
++#else
++	memcpy(pkt, in_pkt->packet, in_pkt->plen);
++#endif
+ 
+ 	mwng_pkt.packet = pkt;
+ 	mwng_pkt.plen = len;
+Index: wtinject.h
+===================================================================
+--- wtinject.h	(revision 168)
++++ wtinject.h	(working copy)
+@@ -56,6 +56,8 @@
+ #include "iwcontrol.h"
+ #include "tx80211.h"
+ 
++//#define USE_RTAP 1
++
+ int wtinj_send(struct tx80211 *wtinj, struct tx80211_packet *in_pkt);
+ int wtinj_open(struct tx80211 *wtinj);
+ int wtinj_close(struct tx80211 *wtinj);

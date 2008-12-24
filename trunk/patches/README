@@ -1,0 +1,30 @@
+This directory contains patches for the libraries cookiemonster uses.
+
+The patches are:
+
+dpkt-80211.diff
+
+This patch adds 802.11 header support to dpkt.
+
+
+lorcon-no-mac80211-radiotap.diff
+
+This patch removes Radiotap headers from LORCON's mac80211 driver support. I
+found this was needed to get injection to work when using the ipwraw-ng driver
+set. It may not be needed for more recent versions of the ipw drivers.
+
+
+lorcon-cardmax-crashfix.diff
+
+This fixes a crashbug that happens on some systems due to an overflow in
+LORCON's card list array.
+
+
+pylorcon-paths.diff
+
+This adjusts the paths pylorcon searches for the lorcon library so that it
+works from the current working directory with a fresh build.
+
+
+
+These patches should already be applied in "official" CookieMonster releases.

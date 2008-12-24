@@ -1,0 +1,11 @@
+Thanks:
+
+Damon McCoy for testing this in his wireless lab and adding support 
+for more esoteric 802.11 header options to dpkt.
+
+Nick Weaver for conversation and discussion, and for the idea of adding
+"bounce" attack support to coerce Google's single-signon mechanism
+to generate cookies for arbitrary services and to demote secure cookies 
+to their insecure versions.
+
+

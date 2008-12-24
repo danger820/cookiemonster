@@ -1,0 +1,394 @@
+Index: dpkt/__init__.py
+===================================================================
+--- dpkt/__init__.py	(revision 52)
++++ dpkt/__init__.py	(working copy)
+@@ -21,6 +21,12 @@
+ import dns
+ import dtp
+ import esp
++
++import rtap
++import llc
++import prism
++import ieee80211
++
+ import ethernet
+ import gre
+ import gzip
+Index: dpkt/ieee80211.py
+===================================================================
+--- dpkt/ieee80211.py	(revision 0)
++++ dpkt/ieee80211.py	(revision 0)
+@@ -0,0 +1,127 @@
++"""Standard 802.11 header. Supports WEP"""
++
++import struct
++import dpkt
++import llc
++
++   
++try:    
++    from Crypto.Cipher import ARC4
++except ImportError:
++    print "Can't find Crypto python lib. Won't be able to decrypt WEP"
++
++import binascii
++from binascii import hexlify as hexl, unhexlify as unhexl
++import socket
++
++# convert numbers to binary strings, and back.  The incoming numbers
++# can be ints, longs, or mpz's.  Their hex representations all look
++# different from each other so we have to account for that.
++def nstr(n):
++    n = n & 0xFFFFFFFF
++    h=hex(n)[2:]                        # remove 0x prefix
++    if h[-1:]=='L': h=h[:-1]            # remove L suffix if present
++    if len(h)&1: h="0"+h
++    return unhexl(h)
++
++def strn(s):
++    return long(hexl(s),16)
++
++
++
++class IEEE80211(dpkt.Packet):
++    __hdr__ = (
++        ('subtype', 'B', 0),
++        ('fc', 'B', 0),
++        ('duration', 'H', 0),
++        ('mac0', '6s', 0),
++        ('mac1', '6s', 0),
++        ('mac2', '6s', 0),
++        ('seq', 'H', 0)
++        )
++    _typesw = {}
++    opt =''
++
++    def __len__(self):
++        return self.__hdr_len__+len(self.opts)
++
++    def unpack(self, buf):
++        #self.hdr_buf = self.data[:6+6+6+2] # Ghetto!!@!11
++        # Only bother with 'Data' frames for now
++        if ord(buf[0]) == 0x08: #normal 802.11 data frame 
++          dpkt.Packet.unpack(self, buf)
++          if self.is_wep(): 
++            self.iv = self.data[:3]
++            self.key = self.data[4]
++            self.icv = self.data[-4:]
++          elif (not self.is_tkip_ccmp()):
++            self.data = self.llc = llc.Llc(self.data)         
++        elif ord(buf[0]) == 0x88: #802.11e QoS data frame
++          dpkt.Packet.unpack(self, buf)
++          self.opt = buf[self.__hdr_len__:self.__hdr_len__+2] #strip off 2 bytes for QoS fields
++          self.data = buf[self.__hdr_len__+2:]
++          if self.is_wep():
++            self.iv = self.data[:3]
++            self.key = self.data[4]
++            self.icv = self.data[-4:]
++          elif (not self.is_tkip_ccmp()):
++            self.data = self.llc = llc.Llc(self.data)
++        else:
++          self.data = buf
++          self.subtype = ord(self.data[0])
++          self.fc = ord(self.data[1])
++          #print "802.11 frame: 0x%2x" % self.subtype 
++
++    def is_data(self): return (self.subtype == 0x08 or self.subtype == 0x88)
++    def is_wep(self): return (self.fc & 0x40 and not (ord(self.data[3]) & 0x20))
++    def is_tkip_ccmp(self): return (self.fc & 0x40 and (ord(self.data[3]) & 0x20))
++    def wep(self, iv, key, id=0):
++      self.fc |= 0x40
++      self.iv = iv
++      self.key = id
++      c = ARC4.new(self.iv+key)
++      icv = nstr(socket.htonl(binascii.crc32(str(self.data))))
++      # XXX: hrmm, double check this
++      while len(icv) < 4:
++        icv = "\x00"+icv
++      self.data = iv+chr(id)+c.encrypt(str(self.data)+icv)
++      self.icv = self.data[-4:]
++ 
++    def unwep(self, key):
++      if self.is_wep():
++        c = ARC4.new(self.iv+key)
++        self.fc &= (~0x40)
++        self.data = self.llc = llc.Llc(c.decrypt(self.data[4:-4]))
++
++    # XXX: Need to fix packing
++    #def pack_hdr(self):
++    #	" zomg so ghetto "
++    #    return dpkt.Packet.pack_hdr(self) + str(self.hdr_buf)
++
++    def set_type(cls, t, pktclass):
++        print "set_type called!11"
++        cls._typesw[t] = pktclass
++    set_type = classmethod(set_type)
++
++    def get_type(cls, t):
++        print "get_type called!11"
++        return cls._typesw[t]
++    get_type = classmethod(get_type)
++
++if __name__ == '__main__':
++    import unittest
++
++    class IEEE80211TestCase(unittest.TestCase):
++        def test_80211(self):
++            # XXX: Test wep and unwep of a wepped packet
++            s = '\x00\xb0\xd0\xe1\x80r\x00\x11$\x8c\x11\xde\x86\xdd`\x00\x00\x00\x00(\x06@\xfe\x80\x00\x00\x00\x00\x00\x00\x02\x11$\xff\xfe\x8c\x11\xde\xfe\x80\x00\x00\x00\x00\x00\x00\x02\xb0\xd0\xff\xfe\xe1\x80r\xcd\xd3\x00\x16\xffP\xd7\x13\x00\x00\x00\x00\xa0\x02\xff\xffg\xd3\x00\x00\x02\x04\x05\xa0\x01\x03\x03\x00\x01\x01\x08\n}\x18:a\x00\x00\x00\x00'
++            w = IEEE80211(s)
++            iv = w.iv
++            icv1 = w.icv
++            w.unwep("key")
++            w.wep(iv, "key")
++            if icv1 != raw_pkt.icv:
++                raise UnpackError("WEP Failure!")
++
++
++    unittest.main()
+Index: dpkt/prism.py
+===================================================================
+--- dpkt/prism.py	(revision 0)
++++ dpkt/prism.py	(revision 0)
+@@ -0,0 +1,47 @@
++"""Linux Prism header"""
++
++import struct
++import dpkt
++import ieee80211
++import socket
++
++class Prism(dpkt.Packet):
++    __hdr__ = (
++        ('code', 'L', ''),
++        ('len', 'L', '') # XXX: Why no > or < endian chars here??
++       )
++    _typesw = {}
++    
++    def unpack(self, buf):
++        dpkt.Packet.unpack(self, buf)
++        self.len = socket.ntohl(self.len)
++        self.hdr_buf = self.data[:self.len-8] # This is soooo ghetto
++        self.data = self.ieee80211 = ieee80211.IEEE80211(self.data[self.len-8:])
++
++    def pack_hdr(self):
++	" zomg sooo ghetto "
++        self.len = socket.htonl(self.len)
++        ret = dpkt.Packet.pack_hdr(self) + str(self.hdr_buf)
++        self.len = socket.ntohl(self.len)
++	return ret
++
++    def set_type(cls, t, pktclass):
++        print "set_type called!11"
++        cls._typesw[t] = pktclass
++    set_type = classmethod(set_type)
++
++    def get_type(cls, t):
++        print "get_type called!11"
++        return cls._typesw[t]
++    get_type = classmethod(get_type)
++
++
++if __name__ == '__main__':
++    import unittest
++
++    class EthTestCase(unittest.TestCase):
++        def test_eth(self):
++            s = '\x00\xb0\xd0\xe1\x80r\x00\x11$\x8c\x11\xde\x86\xdd`\x00\x00\x00\x00(\x06@\xfe\x80\x00\x00\x00\x00\x00\x00\x02\x11$\xff\xfe\x8c\x11\xde\xfe\x80\x00\x00\x00\x00\x00\x00\x02\xb0\xd0\xff\xfe\xe1\x80r\xcd\xd3\x00\x16\xffP\xd7\x13\x00\x00\x00\x00\xa0\x02\xff\xffg\xd3\x00\x00\x02\x04\x05\xa0\x01\x03\x03\x00\x01\x01\x08\n}\x18:a\x00\x00\x00\x00'
++            eth = Ethernet(s)
++
++    unittest.main()
+Index: dpkt/rtap.py
+===================================================================
+--- dpkt/rtap.py	(revision 0)
++++ dpkt/rtap.py	(revision 0)
+@@ -0,0 +1,70 @@
++"""Linux RadioTap header"""
++
++import struct
++import dpkt
++import ieee80211 
++import socket
++
++#Provided the IEEE80211_RADIOTAP_EXT bit is not set, the data for fields specified
++#in the it_present bitmask immediately follow the radiotap header
++IEEE80211_RADIOTAP_TSFT = 0
++IEEE80211_RADIOTAP_FLAGS = 1
++IEEE80211_RADIOTAP_RATE = 2
++IEEE80211_RADIOTAP_CHANNEL = 3
++IEEE80211_RADIOTAP_FHSS = 4
++IEEE80211_RADIOTAP_DBM_ANTSIGNAL = 5
++IEEE80211_RADIOTAP_DBM_ANTNOISE = 6
++IEEE80211_RADIOTAP_LOCK_QUALITY = 7
++IEEE80211_RADIOTAP_TX_ATTENUATION = 8
++IEEE80211_RADIOTAP_DB_TX_ATTENUATION = 9
++IEEE80211_RADIOTAP_DBM_TX_POWER = 10
++IEEE80211_RADIOTAP_ANTENNA = 11
++IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12
++IEEE80211_RADIOTAP_DB_ANTNOISE = 13
++IEEE80211_RADIOTAP_EXT = 31
++
++class Rtap(dpkt.Packet):
++    __hdr__ = (
++        ('ver', 'B', ''),
++        ('pad', 'B', ''),
++        ('len', 'H', ''),
++        ('field_present_flags', '4s', 0) # XXX: Bleh.... 
++        #('rate', 'B', 0), # FIXME: get values
++        #('freq', 'H', 0), # FIXME: get values
++        #('chan_type', 'H', 0), # FIXME: get values
++        #('signal', 'B', 0), # FIXME: get values
++        #('noise', 'B', 0), # FIXME: get values
++        #('antenna', 'B', 0),
++        #('signal2', 'B', 0) # FIXME: get values
++        )
++    opts = ''
++    _typesw = {}
++    
++    def __len__(self):
++        return socket.ntohs(self.len)
++  
++    def unpack(self, buf):
++        dpkt.Packet.unpack(self, buf)
++        self.opts = buf[self.__hdr_len__:socket.ntohs(self.len)]
++        self.data = buf[socket.ntohs(self.len):]
++        self.data = self.ieee80211 = ieee80211.IEEE80211(self.data)
++
++    def set_type(cls, t, pktclass):
++        print "set_type called!11"
++        cls._typesw[t] = pktclass
++    set_type = classmethod(set_type)
++
++    def get_type(cls, t):
++        print "get_type called!11"
++        return cls._typesw[t]
++    get_type = classmethod(get_type)
++
++if __name__ == '__main__':
++    import unittest
++
++    class EthTestCase(unittest.TestCase):
++        def test_eth(self):
++            s = '\x00\xb0\xd0\xe1\x80r\x00\x11$\x8c\x11\xde\x86\xdd`\x00\x00\x00\x00(\x06@\xfe\x80\x00\x00\x00\x00\x00\x00\x02\x11$\xff\xfe\x8c\x11\xde\xfe\x80\x00\x00\x00\x00\x00\x00\x02\xb0\xd0\xff\xfe\xe1\x80r\xcd\xd3\x00\x16\xffP\xd7\x13\x00\x00\x00\x00\xa0\x02\xff\xffg\xd3\x00\x00\x02\x04\x05\xa0\x01\x03\x03\x00\x01\x01\x08\n}\x18:a\x00\x00\x00\x00'
++            eth = Ethernet(s)
++
++    unittest.main()
+Index: dpkt/http.py
+===================================================================
+--- dpkt/http.py	(revision 52)
++++ dpkt/http.py	(working copy)
+@@ -16,8 +16,10 @@
+         if not line:
+             break
+         l = line.split(None, 1)
++        # Sometimes we can split TCP packets here too.
+         if not l[0].endswith(':'):
+-            raise dpkt.UnpackError('invalid header: %r' % line)
++            raise dpkt.NeedData('short header line: %r' % line)
++            #raise dpkt.UnpackError('short header line: %r' % line)
+         k = l[0][:-1].lower()
+         d[k] = len(l) != 1 and l[1] or ''
+     return d
+Index: dpkt/llc.py
+===================================================================
+--- dpkt/llc.py	(revision 0)
++++ dpkt/llc.py	(revision 0)
+@@ -0,0 +1,84 @@
++"""802.11-specific gimpy LLC header """
++
++import struct
++import dpkt, stp
++import ip
++
++LLC_CRC_LEN	= 4
++LLC_HDR_LEN	= 14
++
++LLC_LEN_MIN	= 64		# minimum frame length with CRC
++LLC_LEN_MAX	= 1518		# maximum frame length with CRC
++
++LLC_MTU		= (LLC_LEN_MAX - LLC_HDR_LEN - LLC_CRC_LEN)
++LLC_MIN		= (LLC_LEN_MIN - LLC_HDR_LEN - LLC_CRC_LEN)
++
++# Ethernet payload types - http://standards.ieee.org/regauth/ethertype
++LLC_TYPE_PUP	= 0x0200		# PUP protocol
++LLC_TYPE_IP	= 0x0800		# IP protocol
++LLC_TYPE_ARP	= 0x0806		# address resolution protocol
++LLC_TYPE_CDP	= 0x2000		# Cisco Discovery Protocol
++LLC_TYPE_DTP	= 0x2004		# Cisco Dynamic Trunking Protocol
++LLC_TYPE_REVARP	= 0x8035		# reverse addr resolution protocol
++LLC_TYPE_8021Q	= 0x8100		# IEEE 802.1Q VLAN tagging
++LLC_TYPE_IPX	= 0x8137		# Internetwork Packet Exchange
++LLC_TYPE_IP6	= 0x86DD		# IPv6 protocol
++LLC_TYPE_PPP	= 0x880B		# PPP
++LLC_TYPE_MPLS	= 0x8847		# MPLS
++LLC_TYPE_MPLS_MCAST	= 0x8848	# MPLS Multicast
++
++class Llc(dpkt.Packet):
++    __hdr__ = (
++               ('dsap', 'B', ''),
++               ('ssap', 'B', ''),
++               ('control', 'B', ''),
++               ('oui', '3s', ''),
++               ('type', 'H', LLC_TYPE_IP)
++              )
++    _typesw = {}
++    
++   
++    def unpack(self, buf):
++        dpkt.Packet.unpack(self, buf)
++        # 802.2 LLC
++        #self.dsap, self.ssap, self.ctl = struct.unpack('BBB', self.data[:3])
++        # SNAP
++        if self.type == LLC_TYPE_IP:
++            self.data = ip.IP(self.data)
++        else:
++            pass #most arp
++	    #print "Ignoring junk: %x" % self.type
++
++    def set_type(cls, t, pktclass):
++        cls._typesw[t] = pktclass
++    set_type = classmethod(set_type)
++
++    def get_type(cls, t):
++        return cls._typesw[t]
++    get_type = classmethod(get_type)
++
++# XXX - auto-load Ethernet dispatch table from LLC_TYPE_* definitions
++def __load_types():
++    import os
++    d = dict.fromkeys([ x[:-3] for x in os.listdir(os.path.dirname(__file__) or '.') if x.endswith('.py') ])
++    g = globals()
++    for k, v in g.iteritems():
++        if k.startswith('LLC_TYPE_'):
++            name = k[9:]
++            modname = name.lower()
++            if modname in d:
++                mod = __import__(modname, g)
++                Llc.set_type(v, getattr(mod, name))
++
++if not Llc._typesw:
++    __load_types()
++
++if __name__ == '__main__':
++    import unittest
++
++    class EthTestCase(unittest.TestCase):
++        def test_eth(self):
++            s = '\x00\xb0\xd0\xe1\x80r\x00\x11$\x8c\x11\xde\x86\xdd`\x00\x00\x00\x00(\x06@\xfe\x80\x00\x00\x00\x00\x00\x00\x02\x11$\xff\xfe\x8c\x11\xde\xfe\x80\x00\x00\x00\x00\x00\x00\x02\xb0\xd0\xff\xfe\xe1\x80r\xcd\xd3\x00\x16\xffP\xd7\x13\x00\x00\x00\x00\xa0\x02\xff\xffg\xd3\x00\x00\x02\x04\x05\xa0\x01\x03\x03\x00\x01\x01\x08\n}\x18:a\x00\x00\x00\x00'
++            eth = Llc(s)
++
++    unittest.main()
+Index: tests/test-perf2.py
+===================================================================
+--- tests/test-perf2.py	(revision 52)
++++ tests/test-perf2.py	(working copy)
+@@ -1,5 +1,8 @@
+ #!/usr/bin/env python
+ 
++#import psyco
++#psyco.full()
++
+ import dpkt
+ import time, unittest
+ 
