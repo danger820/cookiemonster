@@ -1,0 +1,34 @@
+Index: tx.py
+===================================================================
+--- tx.py	(revision 5)
++++ tx.py	(working copy)
+@@ -9,6 +9,7 @@
+ import sys
+ import getopt
+ import time
++sys.path.append('./build/lib.linux-i686-2.5/')
+ import pylorcon
+ 
+ def usage():
+@@ -93,7 +94,7 @@
+   count = 0
+   try:
+       while loopfunction(count):
+-        tx.txpacket("Hello World!")
++        tx.txpacket(packet)
+         count += 1
+       if sleep > 0:
+         time.sleep(sleep)
+Index: setup.py
+===================================================================
+--- setup.py	(revision 5)
++++ setup.py	(working copy)
+@@ -2,7 +2,7 @@
+ 
+ pylorcon = Extension('pylorcon',
+ 		sources = ['pylorcon.c'],
+-		libraries = ['orcon'])
++		libraries = ['orcon-1.0.0'])
+ 
+ setup(name = 'pylorcon',
+ 		version = '1.0',
