@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # Python sugar. Ignore this.
-__all__ = ["ALWAYS_TARGET", "COMMON_PATHS", "MAX_ATTEMPTS", "SEND_RST", "MAX_TRACK_LEN", "IGNORE_HOSTS", "LOG_REFERERS_WITH", "FULL_BOUNCE_FOR"] 
+__all__ = ["ALWAYS_TARGET", "COMMON_PATHS", "MAX_ATTEMPTS", "SEND_RST", "MAX_TRACK_LEN", "IGNORE_HOSTS", "LOG_REFERERS_WITH", "FULL_BOUNCE_FOR"]
 
 
 # This is a list of target sites to always inject into target IP streams.
@@ -18,10 +18,10 @@ __all__ = ["ALWAYS_TARGET", "COMMON_PATHS", "MAX_ATTEMPTS", "SEND_RST", "MAX_TRA
 #                   "live.com" : True,
 #                   "www.facebook.com" : True,
 #                   "www.livejournal.com" : True}
-ALWAYS_TARGET = {"onlinebanking-nw.bankofamerica.com" : True}
+ALWAYS_TARGET = {}
 
 # Maximum number of attempts to make per target host for any given IP
-MAX_ATTEMPTS = 2
+MAX_ATTEMPTS = 3
 
 # Send a TCP reset after injecting content? (Usually not needed)
 SEND_RST=True
@@ -37,7 +37,7 @@ IGNORE_HOSTS = {"sb.google.com" : True,
 MAX_TRACK_LEN = 4096
 
 # Common cookie paths for popular domains. 
-COMMON_PATHS = {"mail.google.com" : ["/mail"], 
+COMMON_PATHS = {"mail.google.com" : ["/mail"],
                  "www.google.com" : ["/accounts"]}
 
 
@@ -45,6 +45,9 @@ COMMON_PATHS = {"mail.google.com" : ["/mail"],
 # us to nab session ids used in SSL connections that have links to
 # http urls. For several sites, this SessionID is their only authenticated
 # protection.
+# Note that referrers are not transmitted for most browsers from https->http
+# links, but this can still recover sites that persist the session id during
+# http urls.
 # TODO: Could generalize this to a regex and apply it to all GET urls as 
 # well, for sites that auth via insecure GET params and cookies
 LOG_REFERERS_WITH = ["newegg.com",
@@ -63,7 +66,8 @@ LOG_REFERERS_WITH = ["newegg.com",
 # such as Google to actually GENERATE cookies for us for other
 # services the user may have accounts for, but is not actively logged 
 # into at the time. 
-FULL_BOUNCE_FOR = {"mail.google.com" : True,
-                 "finance.google.com" : True,
-                 "docs.google.com" : True}
+# Example:
+#FULL_BOUNCE_FOR = {"mail.google.com" : True,
+#                 "finance.google.com" : True,
+#                 "docs.google.com" : True}
 FULL_BOUNCE_FOR = {}
