@@ -1,7 +1,7 @@
-Index: tx.c
+Index: lorcon-svn/tx.c
 ===================================================================
---- tx.c	(revision 168)
-+++ tx.c	(working copy)
+--- lorcon-svn/tx.c	(revision 168)
++++ lorcon-svn/tx.c	(working copy)
 @@ -46,7 +46,7 @@
  		fprintf(stderr, "Error accessing supported cardlist.\n");
  	} else {
@@ -11,10 +11,10 @@ Index: tx.c
  			printf("%s ", cardlist->cardnames[i]);
  		}
  		printf("\n");
-Index: wtinject.c
+Index: lorcon-svn/wtinject.c
 ===================================================================
---- wtinject.c	(revision 168)
-+++ wtinject.c	(working copy)
+--- lorcon-svn/wtinject.c	(revision 168)
++++ lorcon-svn/wtinject.c	(working copy)
 @@ -99,6 +99,12 @@
  	sa_ll.sll_family = AF_PACKET;
  	sa_ll.sll_protocol = htons(ETH_P_80211_RAW);
@@ -28,10 +28,10 @@ Index: wtinject.c
  	err = bind(wtinj->raw_fd, (struct sockaddr *)&sa_ll, sizeof sa_ll);
  	if (err != 0) {
  		snprintf(wtinj->errstr, TX80211_STATUS_MAX, "bind() failed, %s",
-Index: mac80211inject.c
+Index: lorcon-svn/mac80211inject.c
 ===================================================================
---- mac80211inject.c	(revision 168)
-+++ mac80211inject.c	(working copy)
+--- lorcon-svn/mac80211inject.c	(revision 168)
++++ lorcon-svn/mac80211inject.c	(working copy)
 @@ -58,7 +58,11 @@
  	int len, channel, sendcount;
  
@@ -64,10 +64,10 @@ Index: mac80211inject.c
  
  	mwng_pkt.packet = pkt;
  	mwng_pkt.plen = len;
-Index: wtinject.h
+Index: lorcon-svn/wtinject.h
 ===================================================================
---- wtinject.h	(revision 168)
-+++ wtinject.h	(working copy)
+--- lorcon-svn/wtinject.h	(revision 168)
++++ lorcon-svn/wtinject.h	(working copy)
 @@ -56,6 +56,8 @@
  #include "iwcontrol.h"
  #include "tx80211.h"

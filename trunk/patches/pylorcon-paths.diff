@@ -1,7 +1,7 @@
-Index: tx.py
+Index: pylorcon-svn/tx.py
 ===================================================================
---- tx.py	(revision 5)
-+++ tx.py	(working copy)
+--- pylorcon-svn/tx.py	(revision 5)
++++ pylorcon-svn/tx.py	(working copy)
 @@ -9,6 +9,7 @@
  import sys
  import getopt
@@ -19,10 +19,10 @@ Index: tx.py
          count += 1
        if sleep > 0:
          time.sleep(sleep)
-Index: setup.py
+Index: pylorcon-svn/setup.py
 ===================================================================
---- setup.py	(revision 5)
-+++ setup.py	(working copy)
+--- pylorcon-svn/setup.py	(revision 5)
++++ pylorcon-svn/setup.py	(working copy)
 @@ -2,7 +2,7 @@
  
  pylorcon = Extension('pylorcon',

@@ -1,7 +1,7 @@
-Index: tx80211.c
+Index: lorcon-svn/tx80211.c
 ===================================================================
---- tx80211.c	(revision 168)
-+++ tx80211.c	(working copy)
+--- lorcon-svn/tx80211.c	(revision 168)
++++ lorcon-svn/tx80211.c	(working copy)
 @@ -48,20 +48,20 @@
  		return NULL;
  	}
@@ -39,10 +39,10 @@ Index: tx80211.c
  	return ret;
  }
  
-Index: tx80211.h
+Index: lorcon-svn/tx80211.h
 ===================================================================
---- tx80211.h	(revision 168)
-+++ tx80211.h	(working copy)
+--- lorcon-svn/tx80211.h	(revision 168)
++++ lorcon-svn/tx80211.h	(working copy)
 @@ -250,6 +250,8 @@
  */
  #define INJ_MAX         16
