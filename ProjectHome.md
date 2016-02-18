@@ -1,0 +1,3 @@
+Cookiemonster is an proof of concept python-based cookie hijacking utility that is able to capture cookies of improperly secured HTTPS sites via the local network. In its default mode of operation, Cookiemonster tracks the HTTPS sites visited by a each local client IP and then automatically injects HTML elements for each HTTPS domain into subsequent HTTP responses to a particular client. This causes any insecure HTTPS cookies from the automatically collected target domains to be transmitted unencrypted for capture by Cookiemonster, which then writes them into Firefox 2.0 or 3.0 compatible cookie files.
+
+For more infromation, see http://fscked.org/blog/fully-automated-active-https-cookie-hijacking and http://fscked.org/category/tags/insecurecookies
